@@ -1,0 +1,7 @@
+# Live configuration - secrets must never be committed.
+# (v1.0+ stores it in %APPDATA%\Super2FA\; this also guards the legacy
+#  location next to the script.)
+super2fa.ini
+
+# Generated output
+selftest-report.txt
