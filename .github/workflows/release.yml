@@ -28,10 +28,8 @@ jobs:
           choco install autohotkey.install --version=2.0.19 -y --no-progress
 
           # 2) Ahk2Exe compiler from its own GitHub releases (supports v2 scripts).
-          $tag = (gh release list --repo AutoHotkey/Ahk2Exe --limit 1 --json tagName --jq '.[0].tagName' 2>$null).Trim()
-          if (-not $tag) { $tag = "v1.1.37.02a2" }
-          Write-Host "Latest Ahk2Exe release tag: $tag"
-          $url = "https://github.com/AutoHotkey/Ahk2Exe/releases/download/$tag/Ahk2Exe.zip"
+          #    "latest/download" always resolves to the newest release's asset.
+          $url = "https://github.com/AutoHotkey/Ahk2Exe/releases/latest/download/Ahk2Exe.zip"
           $zip = "$env:RUNNER_TEMP\ahk2exe.zip"
           Write-Host "Downloading Ahk2Exe from $url"
           Invoke-WebRequest -Uri $url -OutFile $zip -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 120
