@@ -25,54 +25,39 @@ jobs:
         shell: pwsh
         run: |
           function Find-Ahk2Exe {
-            $cands = @(
-              "C:\Program Files\AutoHotkey\v2\Ahk2Exe.exe",
-              "C:\Program Files\AutoHotkey\Ahk2Exe.exe",
-              "C:\Program Files\AutoHotkey\Compiler\Ahk2Exe.exe",
-              "C:\Program Files (x86)\AutoHotkey\v2\Ahk2Exe.exe",
-              "C:\Program Files (x86)\AutoHotkey\Ahk2Exe.exe"
-            )
-            foreach ($c in $cands) { if (Test-Path $c) { return Get-Item $c } }
-            $roots = @(
-              "C:\Program Files\AutoHotkey",
-              "C:\Program Files (x86)\AutoHotkey",
-              "C:\ProgramData\chocolatey",
-              "$env:RUNNER_TEMP\ahk"
-            )
-            foreach ($r in $roots) {
+            param($Roots)
+            foreach ($r in $Roots) {
               if (Test-Path $r) {
-                $f = Get-ChildItem $r -Recurse -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($f) { return $f }
+                $f = Get-ChildItem $r -Recurse -FollowSymlink -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($f) { return $f.FullName }
               }
             }
             return $null
           }
 
-          function Get-FromZip {
-            $url = "https://www.autohotkey.com/download/2.0/AutoHotkey_2.0.19.zip"
+          function Get-FromGitHubZip {
+            $url = "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.19/AutoHotkey_2.0.19.zip"
             $zip = "$env:RUNNER_TEMP\ahk.zip"
             $dest = "$env:RUNNER_TEMP\ahk"
-            Write-Host "Downloading portable ZIP: $url"
-            Invoke-WebRequest -Uri $url -OutFile $zip -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 120
+            Write-Host "Downloading AutoHotkey from GitHub: $url"
+            Invoke-WebRequest -Uri $url -OutFile $zip -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 120
             Expand-Archive -Path $zip -DestinationPath $dest -Force
-            $f = Get-ChildItem $dest -Recurse -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($f) { return $f.FullName }
-            return $null
+            return Find-Ahk2Exe @($dest)
           }
 
-          $exe = Find-Ahk2Exe
-          if (-not $exe) {
-            $p = Get-FromZip
-            if ($p) { $exe = Get-Item $p }
-          }
-          if (-not $exe) {
-            Write-Host "ZIP method failed; trying Chocolatey..."
+          $p = Get-FromGitHubZip
+          if (-not $p) {
+            Write-Host "GitHub ZIP method failed; trying Chocolatey..."
             choco install autohotkey.install --version=2.0.19 -y --no-progress
-            $exe = Find-Ahk2Exe
+            $p = Find-Ahk2Exe @("C:\Program Files\AutoHotkey", "C:\Program Files (x86)\AutoHotkey")
+            if (-not $p) {
+              Write-Host "---- AutoHotkey install tree (debug) ----"
+              Get-ChildItem "C:\Program Files\AutoHotkey" -Recurse -FollowSymlink -ErrorAction SilentlyContinue | Select-Object FullName | Format-Table -HideTableHeaders | Out-String | Write-Host
+            }
           }
-          if (-not $exe) { throw "Ahk2Exe.exe not found after all attempts" }
-          Write-Host "Using Ahk2Exe: $($exe.FullName)"
-          "path=$($exe.FullName)" | Out-File -Append $env:GITHUB_OUTPUT
+          if (-not $p) { throw "Ahk2Exe.exe not found after all attempts" }
+          Write-Host "Using Ahk2Exe: $p"
+          "path=$p" | Out-File -Append $env:GITHUB_OUTPUT
 
       - name: Compile super2fa.exe
         shell: pwsh
