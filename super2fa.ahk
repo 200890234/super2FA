@@ -412,17 +412,22 @@ S2FA_Toast(text, title := "") {
     WinGetPos(, , &tw, &th, S2FA_ToastGui)
     mon := 1
     count := MonitorGetCount()
-    WinGetPos(&ax, &ay, &aw, &ah, "A")
-    if (IsSet(ax)) {
-        acx := ax + aw // 2
-        acy := ay + ah // 2
-        i := 0
-        Loop count {
-            i++
-            MonitorGetWorkArea(i, &l, &t, &r, &b)
-            if (acx >= l && acx <= r && acy >= t && acy <= b) {
-                mon := i
-                break
+    ; "A" (active window) may not exist (focus on desktop/taskbar, or the
+    ; toast fires before any window is active). WinGetPos("A") throws in that
+    ; case, so guard it and fall back to monitor 1.
+    if WinExist("A") {
+        try {
+            WinGetPos(&ax, &ay, &aw, &ah, "A")
+            acx := ax + aw // 2
+            acy := ay + ah // 2
+            i := 0
+            Loop count {
+                i++
+                MonitorGetWorkArea(i, &l, &t, &r, &b)
+                if (acx >= l && acx <= r && acy >= t && acy <= b) {
+                    mon := i
+                    break
+                }
             }
         }
     }
