@@ -208,7 +208,7 @@ S2FA_ReadIniFile(path) {
     cfg := Map(
         "hotkey",       IniRead(path, "General", "Hotkey", ""),
         "triggerMode",  IniRead(path, "General", "TriggerMode", "ending"),
-        "trayTip",      IniRead(path, "General", "ShowTrayTip", "0")
+        "trayTip",      IniRead(path, "General", "ShowTrayTip", "1")
     )
 
     entries := []
@@ -233,7 +233,7 @@ S2FA_LoadConfig() {
     data := S2FA_ReadIniFile(S2FA_IniFile)
     if (data = false) {
         ; no file yet - start with defaults; SaveConfig creates it later
-        S2FA_Cfg := Map("hotkey", "", "triggerMode", "ending", "trayTip", "0")
+        S2FA_Cfg := Map("hotkey", "", "triggerMode", "ending", "trayTip", "1")
         S2FA_Entries := []
     } else {
         S2FA_Cfg := data["cfg"]
@@ -599,10 +599,17 @@ S2FA_ShowSettings() {
     g.Add("Button", "x425 y" (hy2 - 4) " w60", "Clear").OnEvent("Click", S2FA_ClearHotkey)
     g.Add("Text", "x495 y" (hy2 + 1) " cGray", "(default: none)")
 
+    ; --- inserted-code notification ---
+    tipY := hy2 + 30
+    chkTip := g.Add("CheckBox", "x10 y" tipY " vShowTip"
+        , "Show a notification after inserting the code")
+    if (S2FA_Cfg["trayTip"] = "1")
+        chkTip.Value := 1
+
     ; --- bottom buttons ---
     ; No "Exit" button in hosted mode: exiting the process would kill the
     ; host script. Closing the window (Cancel / X / Esc) just hides it.
-    by := hy2 + 44
+    by := tipY + 38
     g.Add("Button", "x10 y" by " w80", "&Help").OnEvent("Click", S2FA_ShowHelp)
     g.Add("Button", "x100 y" by " w80", "&Import...").OnEvent("Click", S2FA_ImportConfig)
     g.Add("Button", "x190 y" by " w90", "Config &file").OnEvent("Click", S2FA_OpenConfigFile)
@@ -616,6 +623,7 @@ S2FA_ShowSettings() {
     S2FA_Gui.HotkeyBox := hkBox
     S2FA_Gui.ModeEnding := rb1
     S2FA_Gui.ModeImmediate := rb2
+    S2FA_Gui.ShowTip := chkTip
 
     g.OnEvent("Close", (*) => S2FA_Gui.Hide())
     g.OnEvent("Escape", (*) => S2FA_Gui.Hide())
@@ -714,6 +722,7 @@ S2FA_SaveSettings(*) {
     S2FA_Entries := rows
 
     S2FA_Cfg["triggerMode"] := S2FA_Gui.ModeImmediate.Value ? "immediate" : "ending"
+    S2FA_Cfg["trayTip"] := S2FA_Gui.ShowTip.Value ? "1" : "0"
 
     hotkey := Trim(S2FA_Gui.HotkeyBox.Value)
     if (hotkey != "" && !S2FA_IsValidHotkey(hotkey)) {
@@ -781,6 +790,7 @@ S2FA_ImportConfig(*) {
         S2FA_Gui.ModeEnding.Value := 1
     S2FA_Gui.HotkeyBox.Value := data["cfg"]["hotkey"]
     S2FA_Cfg["trayTip"] := data["cfg"]["trayTip"]
+    S2FA_Gui.ShowTip.Value := (data["cfg"]["trayTip"] = "1") ? 1 : 0
 
     ; count secrets that cannot produce a code, so the user knows what to fix
     bad := 0

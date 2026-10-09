@@ -195,6 +195,13 @@ A global setting, applied to every trigger.
   trigger is typed. More convenient, but expands during normal typing whenever
   the trigger appears inside another word.
 
+### Inserted-code notification
+
+**Show a notification after inserting the code** is on by default: every
+trigger pops a small bottom-right toast showing the code and how many seconds
+it stays valid. Uncheck it if you would rather the code be inserted silently.
+(This is the `ShowTrayTip` value in `[General]`.)
+
 ### Open settings hotkey
 
 Optional. Click **Set**, then press the combination you want, e.g. `Ctrl+Alt+2`.
@@ -239,7 +246,7 @@ Example:
 [General]
 Hotkey=^!2
 TriggerMode=ending
-ShowTrayTip=0
+ShowTrayTip=1
 
 [Entries]
 Count=2
