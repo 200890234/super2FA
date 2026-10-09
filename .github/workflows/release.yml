@@ -23,26 +23,41 @@ jobs:
       - name: Install AutoHotkey v2 runtime + Ahk2Exe compiler
         id: ahk
         shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # 1) AHK v2 runtime (choco works on the runners; it does NOT ship Ahk2Exe).
           choco install autohotkey.install --version=2.0.19 -y --no-progress
 
-          # 2) Ahk2Exe compiler from its own GitHub releases (supports v2 scripts).
-          #    "latest/download" always resolves to the newest release's asset.
-          $url = "https://github.com/AutoHotkey/Ahk2Exe/releases/latest/download/Ahk2Exe.zip"
-          $zip = "$env:RUNNER_TEMP\ahk2exe.zip"
-          Write-Host "Downloading Ahk2Exe from $url"
-          Invoke-WebRequest -Uri $url -OutFile $zip -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 120
-          Expand-Archive -Path $zip -DestinationPath "$env:RUNNER_TEMP\ahk2exe" -Force
+          # 2) Query the real latest Ahk2Exe release and grab its .zip asset.
+          #    Asset names vary between releases, so never guess the URL.
+          $headers = @{ Authorization = "Bearer $env:GITHUB_TOKEN"; Accept = "application/vnd.github+json" }
+          $rel = Invoke-RestMethod -Uri "https://api.github.com/repos/AutoHotkey/Ahk2Exe/releases/latest" -Headers $headers
+          Write-Host "Latest Ahk2Exe release: $($rel.tag_name)"
+          $asset = $rel.assets | Where-Object { $_.name -like '*.zip' } | Select-Object -First 1
+          if (-not $asset) { throw "No .zip asset in latest Ahk2Exe release" }
+          Write-Host "Downloading asset: $($asset.name) <- $($asset.browser_download_url)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "$env:RUNNER_TEMP\ahk2exe.zip" -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 120
+          Expand-Archive -Path "$env:RUNNER_TEMP\ahk2exe.zip" -DestinationPath "$env:RUNNER_TEMP\ahk2exe" -Force
           $exe = Get-ChildItem "$env:RUNNER_TEMP\ahk2exe" -Recurse -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $exe) { throw "Ahk2Exe.exe not found in the downloaded package" }
+          if (-not $exe) {
+            # Fall back to the standalone Ahk2Exe.exe asset if the zip lacks it.
+            $exeAsset = $rel.assets | Where-Object { $_.name -eq 'Ahk2Exe.exe' } | Select-Object -First 1
+            if (-not $exeAsset) { throw "No Ahk2Exe.exe found in release assets" }
+            Write-Host "Zip lacked Ahk2Exe.exe; downloading standalone asset"
+            Invoke-WebRequest -Uri $exeAsset.browser_download_url -OutFile "$env:RUNNER_TEMP\ahk2exe\Ahk2Exe.exe" -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 120
+            $exe = Get-Item "$env:RUNNER_TEMP\ahk2exe\Ahk2Exe.exe"
+          }
           Write-Host "Using Ahk2Exe: $($exe.FullName)"
           "path=$($exe.FullName)" | Out-File -Append $env:GITHUB_OUTPUT
 
       - name: Compile super2fa.exe
         shell: pwsh
         run: |
-          & "${{ steps.ahk.outputs.path }}" /in super2fa.ahk /out super2fa.exe
+          $base = "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
+          if (-not (Test-Path $base)) { $base = "C:\Program Files\AutoHotkey\v2\AutoHotkey.exe" }
+          if (-not (Test-Path $base)) { throw "AHK v2 base binary not found" }
+          & "${{ steps.ahk.outputs.path }}" /in super2fa.ahk /out super2fa.exe /base "$base"
           if (-not (Test-Path super2fa.exe)) { throw "Compilation failed: super2fa.exe was not produced" }
 
       - name: Publish release asset
