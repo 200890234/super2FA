@@ -83,10 +83,14 @@ global S2FA_ToastOpacity := 255
 ; every Windows account keeps its own entries. Created on first save.
 global S2FA_IniFile    := A_AppData "\Super2FA\super2fa.ini"
 
-; Standalone when this file IS the main script; hosted when merged into
-; another script via #Include. A_LineFile is the file the initializer line
-; lives in (always super2fa.ahk), A_ScriptFullPath is always the main script.
+; Standalone when this file IS the main script (run as .ahk or compiled to
+; an exe); hosted when merged into another script via #Include. A_LineFile is
+; the file the initializer line lives in (always super2fa.ahk), while
+; A_ScriptFullPath is the main script. In a COMPILED exe A_LineFile is the
+; resource reference "*#1" rather than a path, so treat a leading "*" as
+; standalone too — otherwise the compiled build silently does nothing.
 global S2FA_Standalone := (A_LineFile = A_ScriptFullPath)
+     || (SubStr(A_LineFile, 1, 1) = "*")   ; "*#1" inside an Ahk2Exe build
 
 ; ---------------------------------------------------------------------------
 ;  Entry point - standalone only. Skipped entirely when included, so the
