@@ -20,25 +20,53 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install AutoHotkey v2 (Chocolatey)
-        shell: pwsh
-        run: |
-          choco install autohotkey.install --version=2.0.19 -y --no-progress
-
-      - name: Locate Ahk2Exe (fall back to official installer)
+      - name: Install AutoHotkey v2 and locate Ahk2Exe
         id: ahk
         shell: pwsh
         run: |
-          $exe = Get-ChildItem "C:\Program Files\AutoHotkey" -Recurse -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-          if (-not $exe) {
-            Write-Host "Ahk2Exe not found after choco install; downloading official installer..."
+          function Find-Ahk2Exe {
+            $cands = @(
+              "C:\Program Files\AutoHotkey\v2\Ahk2Exe.exe",
+              "C:\Program Files\AutoHotkey\Ahk2Exe.exe",
+              "C:\Program Files\AutoHotkey\Compiler\Ahk2Exe.exe",
+              "C:\Program Files (x86)\AutoHotkey\v2\Ahk2Exe.exe",
+              "C:\Program Files (x86)\AutoHotkey\Ahk2Exe.exe"
+            )
+            foreach ($c in $cands) { if (Test-Path $c) { return Get-Item $c } }
+            $roots = @(
+              "C:\Program Files\AutoHotkey",
+              "C:\Program Files (x86)\AutoHotkey",
+              "C:\ProgramData\chocolatey"
+            )
+            foreach ($r in $roots) {
+              if (Test-Path $r) {
+                $f = Get-ChildItem $r -Recurse -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($f) { return $f }
+              }
+            }
+            return $null
+          }
+
+          function Install-Official {
             $url = "https://www.autohotkey.com/download/2.0/AutoHotkey_2.0.19_setup.exe"
             $setup = "$env:RUNNER_TEMP\ahk_setup.exe"
+            Write-Host "Downloading official installer from $url"
             Invoke-WebRequest -Uri $url -OutFile $setup -UserAgent "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 120
             Start-Process -FilePath $setup -ArgumentList "/S" -Wait
-            $exe = Get-ChildItem "C:\Program Files\AutoHotkey" -Recurse -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
           }
-          if (-not $exe) { throw "Ahk2Exe.exe not found after install attempts" }
+
+          $exe = Find-Ahk2Exe
+          if (-not $exe) {
+            Write-Host "Ahk2Exe not found; trying official installer..."
+            Install-Official
+            $exe = Find-Ahk2Exe
+          }
+          if (-not $exe) {
+            Write-Host "Official install did not yield Ahk2Exe; trying Chocolatey..."
+            choco install autohotkey.install --version=2.0.19 -y --no-progress
+            $exe = Find-Ahk2Exe
+          }
+          if (-not $exe) { throw "Ahk2Exe.exe not found after all install attempts" }
           Write-Host "Using Ahk2Exe: $($exe.FullName)"
           "path=$($exe.FullName)" | Out-File -Append $env:GITHUB_OUTPUT
 
