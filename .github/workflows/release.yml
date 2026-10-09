@@ -20,44 +20,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Obtain AutoHotkey v2 (Ahk2Exe)
+      - name: Install AutoHotkey v2 runtime + Ahk2Exe compiler
         id: ahk
         shell: pwsh
         run: |
-          function Find-Ahk2Exe {
-            param($Roots)
-            foreach ($r in $Roots) {
-              if (Test-Path $r) {
-                $f = Get-ChildItem $r -Recurse -FollowSymlink -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($f) { return $f.FullName }
-              }
-            }
-            return $null
-          }
+          # 1) AHK v2 runtime (choco works on the runners; it does NOT ship Ahk2Exe).
+          choco install autohotkey.install --version=2.0.19 -y --no-progress
 
-          function Get-FromGitHubZip {
-            $url = "https://github.com/AutoHotkey/AutoHotkey/releases/download/v2.0.19/AutoHotkey_2.0.19.zip"
-            $zip = "$env:RUNNER_TEMP\ahk.zip"
-            $dest = "$env:RUNNER_TEMP\ahk"
-            Write-Host "Downloading AutoHotkey from GitHub: $url"
-            Invoke-WebRequest -Uri $url -OutFile $zip -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 120
-            Expand-Archive -Path $zip -DestinationPath $dest -Force
-            return Find-Ahk2Exe @($dest)
-          }
-
-          $p = Get-FromGitHubZip
-          if (-not $p) {
-            Write-Host "GitHub ZIP method failed; trying Chocolatey..."
-            choco install autohotkey.install --version=2.0.19 -y --no-progress
-            $p = Find-Ahk2Exe @("C:\Program Files\AutoHotkey", "C:\Program Files (x86)\AutoHotkey")
-            if (-not $p) {
-              Write-Host "---- AutoHotkey install tree (debug) ----"
-              Get-ChildItem "C:\Program Files\AutoHotkey" -Recurse -FollowSymlink -ErrorAction SilentlyContinue | Select-Object FullName | Format-Table -HideTableHeaders | Out-String | Write-Host
-            }
-          }
-          if (-not $p) { throw "Ahk2Exe.exe not found after all attempts" }
-          Write-Host "Using Ahk2Exe: $p"
-          "path=$p" | Out-File -Append $env:GITHUB_OUTPUT
+          # 2) Ahk2Exe compiler from its own GitHub releases (supports v2 scripts).
+          $tag = (gh release list --repo AutoHotkey/Ahk2Exe --limit 1 --json tagName --jq '.[0].tagName' 2>$null).Trim()
+          if (-not $tag) { $tag = "v1.1.37.02a2" }
+          Write-Host "Latest Ahk2Exe release tag: $tag"
+          $url = "https://github.com/AutoHotkey/Ahk2Exe/releases/download/$tag/Ahk2Exe.zip"
+          $zip = "$env:RUNNER_TEMP\ahk2exe.zip"
+          Write-Host "Downloading Ahk2Exe from $url"
+          Invoke-WebRequest -Uri $url -OutFile $zip -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 120
+          Expand-Archive -Path $zip -DestinationPath "$env:RUNNER_TEMP\ahk2exe" -Force
+          $exe = Get-ChildItem "$env:RUNNER_TEMP\ahk2exe" -Recurse -Filter Ahk2Exe.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $exe) { throw "Ahk2Exe.exe not found in the downloaded package" }
+          Write-Host "Using Ahk2Exe: $($exe.FullName)"
+          "path=$($exe.FullName)" | Out-File -Append $env:GITHUB_OUTPUT
 
       - name: Compile super2fa.exe
         shell: pwsh
