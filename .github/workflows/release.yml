@@ -57,8 +57,16 @@ jobs:
           $base = "C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
           if (-not (Test-Path $base)) { $base = "C:\Program Files\AutoHotkey\v2\AutoHotkey.exe" }
           if (-not (Test-Path $base)) { throw "AHK v2 base binary not found" }
-          & "${{ steps.ahk.outputs.path }}" /in super2fa.ahk /out super2fa.exe /base "$base"
+          $ahk2exe = "${{ steps.ahk.outputs.path }}"
+          # Ahk2Exe.exe is a GUI-subsystem app: `&` would return before it
+          # finishes, so wait for it and poll for the output file.
+          $argLine = "/in super2fa.ahk /out super2fa.exe /base `"$base`""
+          $p = Start-Process -FilePath $ahk2exe -ArgumentList $argLine -Wait -PassThru
+          Write-Host "Ahk2Exe exit code: $($p.ExitCode)"
+          $deadline = (Get-Date).AddSeconds(60)
+          while (-not (Test-Path super2fa.exe) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
           if (-not (Test-Path super2fa.exe)) { throw "Compilation failed: super2fa.exe was not produced" }
+          Write-Host "Compiled OK: $((Get-Item super2fa.exe).Length) bytes"
 
       - name: Publish release asset
         uses: softprops/action-gh-release@v2
