@@ -3,8 +3,10 @@
 An AutoHotkey v2 utility that stores your TOTP secrets locally and inserts the
 current 2FA code at the caret with a short typed trigger.
 
-Type `2fagh`, press Space, and the code lands right where you are typing — no
-phone, no authenticator app, no manual copy and paste.
+Type `2fagh` and the current 2FA code lands right where you are typing —
+confirmed with a Space, or instantly the moment you finish typing, depending
+on the trigger mode you pick. No phone, no authenticator app, no manual copy
+and paste.
 
 Runs in two modes:
 
@@ -195,7 +197,9 @@ included mode).
 
 1. Put the caret where the code should go.
 2. Type the trigger, e.g. `2fagh`.
-3. Press Space (or Enter / Tab in *Ending character* mode).
+3. In *Ending character* mode, finish with Space / Enter / Tab. (*Immediate*
+   mode needs no ending character — the code appears as soon as the trigger
+   is complete.)
 
 The code appears at the caret, replacing the trigger text. The ending
 character is consumed — nothing extra is typed after the code. Your previous
