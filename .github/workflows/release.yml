@@ -1,0 +1,49 @@
+name: Build and Release
+
+# Build super2fa.exe on every published GitHub Release, and also when a
+# "v*" tag is pushed (so a tag alone creates the release automatically).
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download AutoHotkey v2 installer
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://www.autohotkey.com/download/2.0/AutoHotkey_2.0.19_setup.exe" -OutFile "$env:RUNNER_TEMP\ahk_setup.exe"
+
+      - name: Install AutoHotkey v2 (silent)
+        shell: pwsh
+        run: |
+          Start-Process -FilePath "$env:RUNNER_TEMP\ahk_setup.exe" -ArgumentList "/S" -Wait
+
+      - name: Locate Ahk2Exe
+        id: ahk
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "C:\Program Files\AutoHotkey" -Recurse -Filter Ahk2Exe.exe | Select-Object -First 1
+          if (-not $exe) { throw "Ahk2Exe.exe not found after install" }
+          "path=$($exe.FullName)" | Out-File -Append $env:GITHUB_OUTPUT
+
+      - name: Compile super2fa.exe
+        shell: pwsh
+        run: |
+          & "${{ steps.ahk.outputs.path }}" /in super2fa.ahk /out super2fa.exe
+          if (-not (Test-Path super2fa.exe)) { throw "Compilation failed: super2fa.exe not produced" }
+
+      - name: Publish release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: super2fa.exe
