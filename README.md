@@ -283,6 +283,16 @@ RFC 6238 Appendix B TOTP vector.
 
 ---
 
+## Releases (auto-built)
+
+Pushing a tag like `v1.0.1`, or publishing a Release from the GitHub UI, runs
+`.github/workflows/release.yml`. It installs AutoHotkey v2.0.19 on a Windows
+runner, compiles `super2fa.ahk` with `Ahk2Exe` into `super2fa.exe`, and uploads
+that executable as a downloadable asset on the Release — no manual build step
+required.
+
+---
+
 ## Troubleshooting
 
 **Triggers do nothing.**
