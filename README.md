@@ -16,6 +16,16 @@ Runs in two modes:
 
 ---
 
+## Screenshot
+
+![Super 2FA settings window](docs/settings.png)
+
+The settings window: one row per account with its own **Test** button, the
+global trigger-mode selector, the optional hotkey that opens the window, and
+the Help / Import / Config file / Config folder / Save / Cancel / Exit actions.
+
+---
+
 ## Requirements
 
 - Windows
@@ -32,6 +42,7 @@ Developed and tested against **AHK 2.0.19 (64-bit)**.
 | `super2fa.ahk` | The application. Standalone tray app *and* includable library. |
 | `lib\totp.ahk` | TOTP / HMAC-SHA1 / SHA-1 / Base32 engine. Shared with the self test. |
 | `selftest.ahk` | Verifies the crypto against published RFC test vectors. |
+| `docs\settings.png` | Screenshot of the settings window shown above. |
 | `super2fa.ini` | Your configuration - **not stored here**: it lives in `%APPDATA%\Super2FA\`, outside the project folder. |
 | `selftest-report.txt` | Output of the last self test run. |
 
