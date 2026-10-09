@@ -404,13 +404,32 @@ S2FA_Toast(text, title := "") {
     S2FA_ToastTitle.Text := (title != "") ? title : S2FA_AppName
     S2FA_ToastBody.Text := text
 
-    ; auto-size, then dock to the bottom-right work-area corner
+    ; auto-size, then dock to the bottom-right of the monitor the user is
+    ; currently on (where they are typing), not always monitor 1. This keeps
+    ; the toast visible on multi-monitor setups and regardless of taskbar
+    ; placement.
     S2FA_ToastGui.Show("Hide")
     WinGetPos(, , &tw, &th, S2FA_ToastGui)
-    MonitorGetWorkArea(1, &wl, &wt, &wr, &wb)
+    mon := 1
+    count := MonitorGetCount()
+    WinGetPos(&ax, &ay, &aw, &ah, "A")
+    if (IsSet(ax)) {
+        acx := ax + aw // 2
+        acy := ay + ah // 2
+        i := 0
+        Loop count {
+            i++
+            MonitorGetWorkArea(i, &l, &t, &r, &b)
+            if (acx >= l && acx <= r && acy >= t && acy <= b) {
+                mon := i
+                break
+            }
+        }
+    }
+    MonitorGetWorkArea(mon, &wl, &wt, &wr, &wb)
     S2FA_ToastGui.Show("x" (wr - tw - 16) " y" (wb - th - 16) " NA")
 
-    SetTimer(S2FA_ToastFade, -4000)
+    SetTimer(S2FA_ToastFade, -5000)
 }
 
 ; Fade the toast out and hide it. The show call arms this once (-4000, the
